@@ -147,10 +147,11 @@ void setup()
   }
 }
 
-// #define SECOONDS_AT_DAY (24 * 60 * 60)
-// #define WEATHER_REQUEST_TIMING (22 * 60 * 60 + 30 * 60)
-#define SECOONDS_AT_DAY (60 * 60)
+#define SECOONDS_AT_DAY (24 * 60 * 60)
+#define BATTERY_UPDATE_TIMING (23 * 60 * 60 + 30 * 60) // 23:30
+#define SECOONDS_AT_HOUR (60 * 60)
 #define WEATHER_REQUEST_TIMING (0)
+#define NTP_REQUEST_TIMING (0)
 const char host[] = "www.jma.go.jp";
 SSLClient cl(ecl, TAs, (size_t)TAs_NUM, 0);
 StaticJsonDocument<8192> doc;
@@ -164,28 +165,43 @@ uint16_t timer_bklt = 60 * 3;
 #define POS_Y_TIME (20)
 #define POS_Y_CODE (40)
 #define POS_Y_MSG (60)
+#define POS_Y_IMG ((LCD_HEIGHT - 1 - HEIGHT_IMAGE - IAMGE_MARGIN) - HEIGHT_TIME)
 #define HEIGHT_TIME (20)
 #define HEIGHT_CODE (20)
 #define WIDTH_TIME (LCD_WIDTH / 2)
 #define WIDTH_MSG (LCD_WIDTH / 2)
-#define HEIGHT_IMAGE (80)
+#define HEIGHT_IMAGE (60)
 #define MAXLEN_MSG (3 * 7)
 #define TEXT_MARGIN (2)
+#define IAMGE_MARGIN (10)
 
+const char *wday[] = {"日", "月", "火", "水", "木", "金", "土"};
+char bufDate[32];
 /**
  * @brief 日付表示
  *
  * @param index 天気情報インデックス
  * @param time 日付文字列
  */
-void outputTime(int index, String time)
+void outputDate(int index, String time)
 {
+  // 曜日の算出
+  int year, month, day;
+  sscanf(time.substring(0, 10).c_str(), "%04d-%02d-%02d", &year, &month, &day);
+  tm t = {0};
+  t.tm_year = year - 1900;
+  t.tm_mon = month - 1;
+  t.tm_mday = day;
+  time_t epoch = mktime(&t);
+  tm *pt = localtime(&epoch);
+  sprintf(bufDate, "%04d/%02d/%02d(%s)\n", pt->tm_year + 1900, pt->tm_mon + 1, pt->tm_mday, wday[pt->tm_wday]);
+
   int32_t img_x = (LCD_WIDTH / 4) + WIDTH_TIME * index;
   // int32_t tw = display.textWidth(time);
   display.fillRect(WIDTH_TIME * index + TEXT_MARGIN, POS_Y_TIME + TEXT_MARGIN, WIDTH_TIME - TEXT_MARGIN * 2, HEIGHT_TIME - TEXT_MARGIN * 2, TFT_BLACK);
   display.setTextColor(TFT_WHITE);
   display.setTextDatum(textdatum_t::middle_center);
-  display.drawString(time.substring(0, 10), img_x, POS_Y_TIME + HEIGHT_TIME / 2);
+  display.drawString(bufDate, img_x, POS_Y_TIME + HEIGHT_TIME / 2);
 }
 
 /**
@@ -213,8 +229,8 @@ void outputCode(int index, String code)
 void outputMessage(int index, String weather_msg)
 {
   int32_t th = display.fontHeight();
-  int32_t msg_y = POS_Y_MSG + TEXT_MARGIN;
-  int32_t msg_h = (LCD_HEIGHT - HEIGHT_TIME) - HEIGHT_IMAGE - msg_y;
+  const int32_t msg_y = POS_Y_MSG + TEXT_MARGIN;
+  const int32_t msg_h = POS_Y_IMG - msg_y;
   display.fillRect(WIDTH_MSG * index + TEXT_MARGIN, msg_y, WIDTH_MSG - TEXT_MARGIN * 2, msg_h - TEXT_MARGIN * 2, TFT_BLACK);
   // size_t l = strlen(weather_msg) / 3;
   // Serial.println(l);
@@ -249,9 +265,8 @@ void outputImage(int index, uint16_t weather_img_code)
   const unsigned char *img_data = image_map[weather_img_code]; // img_data = { xx, xx, width lower, width higher, height lower, height higher }
   int32_t img_w = (int)img_data[3] * 256 + (int)img_data[2];
   int32_t img_h = (int)img_data[5] * 256 + (int)img_data[4];
-  int32_t img_y = (LCD_HEIGHT - 20) - 40;
-  display.setSwapBytes(true);                                                                      // バイト順の変換を有効にする。
-  display.pushImage(img_x - img_w / 2, img_y - img_h / 2, img_w, img_h, (uint16_t *)&img_data[8]); // RGB565の16bit画像データを描画。
+  display.setSwapBytes(true);                                                              // バイト順の変換を有効にする。
+  display.pushImage(img_x - img_w / 2, POS_Y_IMG, img_w, img_h, (uint16_t *)&img_data[8]); // RGB565の16bit画像データを描画。
 }
 
 char bufTime[32];
@@ -312,8 +327,10 @@ void loop()
     // display time
     outputTime(epoch);
 
+    if (epoch % SECOONDS_AT_DAY == NTP_REQUEST_TIMING) // 00:00
+      timeClient.update();
     // get weather information
-    if (first || epoch % SECOONDS_AT_DAY == WEATHER_REQUEST_TIMING) // 22:30
+    if (first || epoch % SECOONDS_AT_HOUR == WEATHER_REQUEST_TIMING) // xx:00
     {
       Serial.print("connecting: ");
       Serial.println(host);
@@ -351,7 +368,7 @@ void loop()
             const String weather_msg = String(doc[0]["timeSeries"][0]["areas"][WEATHER_SUB_AREA_INDEX]["weathers"][i + index].as<const char *>());
 
             // time
-            outputTime(i, time);
+            outputDate(i, time);
             // code
             outputCode(i, weather_code);
             // message
