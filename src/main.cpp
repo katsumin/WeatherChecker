@@ -1,32 +1,59 @@
 #define PROGMEM
+#ifdef M5_MODE
+#include <M5GFX.h>
+#include <M5Unified.h>
+#include <WiFi.h>
+#include <WiFiMulti.h>
+#define LCD_WIDTH (320)
+#define LCD_HEIGHT (240)
+#endif
+#ifdef PICO_MODE
 #include <gfx.h>
 #include <W55RP20lwIP.h>
+#endif
 #include <SSLClient.h>
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
 #include <images.h>
 #include <trust_anchors.h>
 #include <NTPClient.h>
+#ifdef PICO_MODE
 #include <EthernetCompat.h>
+#endif
 #include <map>
 #include "config.h"
 
 // defines
+#ifdef PICO_MODE
 #define BTN_A 15
 #define BTN_B 17
 #define BTN_X 2
 #define BTN_Y 3
 #define LCD_BKLT 13
+#endif
 
 // Ethernet instance
+#ifndef USE_WIFI
 Wiznet55rp20lwIP eth(1 /* chip select */);
+#endif
 
 // Display instance
+#ifdef M5_MODE
+M5GFX display;
+#endif
+#ifdef PICO_MODE
 LGFX display;
+#endif
 
 // Network instance
+#ifdef PICO_MODE
 WiFiUDP udpNtp;
 WiFiClient client;
+#endif
+#ifdef M5_MODE
+WiFiUDP udpNtp;
+WiFiClient client;
+#endif
 
 // NTP
 const long gmtOffset_sec = 9 * 3600; // 9時間の時差を入れる
@@ -82,15 +109,19 @@ void setup()
   display.fillScreen(TFT_BLACK);
   // display.setRotation(1);
 
+  char buf[32];
   // Pico-LCD-2
+#ifdef PICO_MODE
   pinMode(BTN_A, INPUT_PULLUP);
   pinMode(BTN_B, INPUT_PULLUP);
   pinMode(BTN_X, INPUT_PULLUP);
   pinMode(BTN_Y, INPUT_PULLUP);
   pinMode(LCD_BKLT, OUTPUT);
   digitalWrite(LCD_BKLT, lcd_backlight);
+#endif
 
   // Start the Ethernet port
+#ifndef USE_WIFI
   if (!eth.begin()) {
     Serial.println(
         "No wired Ethernet hardware detected. Check pinouts, wiring.");
@@ -103,11 +134,21 @@ void setup()
     Serial.print(".");
     delay(500);
   }
-
-  Serial.print(F("Connected! IP address: "));
-  char buf[32];
   IPAddress addr = eth.localIP();
   snprintf(buf, sizeof(buf), "%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3]);
+#else
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(100);
+  }
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  IPAddress addr = WiFi.localIP();
+  snprintf(buf, sizeof(buf), "%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3]);
+#endif
+
+  Serial.print(F("Connected! IP address: "));
   Serial.println(buf);
   // snprintf(buf, sizeof(buf), "%p", lgfxJapanGothic_16);
   // Serial.println(buf);
@@ -143,10 +184,12 @@ SSLClient cl(client, TAs, (size_t)TAs_NUM, 0);
 StaticJsonDocument<8192> doc;
 char weather_json[64];
 
+#ifdef PICO_MODE
 const pin_size_t button_pins[] PROGMEM = {BTN_A, BTN_B, BTN_X, BTN_Y};
 const char *button_names[] PROGMEM = {"A", "B", "X", "Y"};
 PinStatus button_state[sizeof(button_pins)][3];
 uint16_t timer_bklt = 60 * 3;
+#endif
 
 #define POS_Y_TIME (20)
 #define POS_Y_CODE (40)
@@ -289,6 +332,7 @@ time_t pre_epoch = timeClient.getEpochTime();
 bool first = true;
 void loop()
 {
+#ifdef PICO_MODE
   for (int i = 0; i < sizeof(button_pins); i++) {
     button_state[i][2] = button_state[i][1];
     button_state[i][1] = button_state[i][0];
@@ -302,11 +346,12 @@ void loop()
       }
     }
   }
-
+#endif
   time_t epoch = timeClient.getEpochTime();
   if (epoch != pre_epoch) {
     pre_epoch = epoch;
 
+#ifdef PICO_MODE
     // backlight
     if (timer_bklt > 0) {
       Serial.println(timer_bklt);
@@ -316,6 +361,7 @@ void loop()
         Serial.println("off");
       }
     }
+#endif
 
     // display time
     outputTime(epoch);
