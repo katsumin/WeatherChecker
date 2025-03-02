@@ -303,9 +303,8 @@ void outputImage(int index, uint16_t weather_img_code)
   int32_t img_w = (int)img_data[3] * 256 + (int)img_data[2];
   int32_t img_h = (int)img_data[5] * 256 + (int)img_data[4];
   display.setSwapBytes(true); // バイト順の変換を有効にする。
-  display.pushImage(
-      img_x - img_w / 2, POS_Y_IMG, img_w, img_h,
-      (uint16_t *)&img_data[8]); // RGB565の16bit画像データを描画。
+  display.pushImage(img_x - img_w / 2, POS_Y_IMG, img_w, img_h,
+                    &img_data[8]); // RGB332の8bit画像データを描画。
 }
 
 char bufTime[32];
