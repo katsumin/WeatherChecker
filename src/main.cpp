@@ -11,11 +11,9 @@
 #include <gfx.h>
 #include <W55RP20lwIP.h>
 #endif
-#include <SSLClient.h>
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
 #include <images.h>
-#include <trust_anchors.h>
 #include <NTPClient.h>
 #ifdef PICO_MODE
 #include <EthernetCompat.h>
@@ -174,13 +172,12 @@ void setup()
   }
 }
 
+#define SECOONDS_AT_5MIN (60 * 5)
 #define SECOONDS_AT_DAY (24 * 60 * 60)
 #define BATTERY_UPDATE_TIMING (23 * 60 * 60 + 30 * 60) // 23:30
 #define SECOONDS_AT_HOUR (60 * 60)
 #define WEATHER_REQUEST_TIMING (0)
 #define NTP_REQUEST_TIMING (0)
-const char host[] = "www.jma.go.jp";
-SSLClient cl(client, TAs, (size_t)TAs_NUM, 0);
 StaticJsonDocument<8192> doc;
 char weather_json[64];
 
@@ -303,8 +300,9 @@ void outputImage(int index, uint16_t weather_img_code)
   int32_t img_w = (int)img_data[3] * 256 + (int)img_data[2];
   int32_t img_h = (int)img_data[5] * 256 + (int)img_data[4];
   display.setSwapBytes(true); // バイト順の変換を有効にする。
-  display.pushImage(img_x - img_w / 2, POS_Y_IMG, img_w, img_h,
-                    &img_data[8]); // RGB332の8bit画像データを描画。
+  display.pushImage(
+      img_x - img_w / 2, POS_Y_IMG, img_w, img_h,
+      (uint16_t *)&img_data[8]); // RGB565の16bit画像データを描画。
 }
 
 char bufTime[32];
@@ -365,6 +363,12 @@ void loop()
     // display time
     outputTime(epoch);
 
+    if (epoch % SECOONDS_AT_5MIN == NTP_REQUEST_TIMING) {
+      IPAddress h;
+      h.fromString(PROXY_HOST);
+      int ping_ttl = eth.ping(h, 10);
+      Serial.printf("ping(ttl): %d\n", ping_ttl);
+    }
     if (epoch % SECOONDS_AT_DAY == NTP_REQUEST_TIMING) // 00:00
       timeClient.update();
     if (first || epoch % SECOONDS_AT_HOUR == WEATHER_REQUEST_TIMING) // xx:00
@@ -378,13 +382,15 @@ void loop()
 
       // Use WiFiClient class to create TCP connections
       // SSLClient cl(client, TAs, (size_t)TAs_NUM, 0);
-      Serial.print("connecting: ");
-      Serial.println(host);
+      // Serial.print("connecting: ");
+      // Serial.println(host);
       first = false;
-      HttpClient hcl = HttpClient(cl, host, 443);
+      HttpClient hcl = HttpClient(client, PROXY_HOST, PROXY_PORT);
       // if (!client.connect(host, port))
       snprintf(weather_json, sizeof(weather_json),
-               "/bosai/forecast/data/forecast/%d.json", WEATHER_AREA_CODE);
+               "/%s/www.jma.go.jp/bosai/forecast/data/forecast/%d.json",
+               PROXY_PATH, WEATHER_AREA_CODE);
+      Serial.printf("connecting to: %s\n", weather_json);
       int res = hcl.get(weather_json);
       Serial.print("response json: ");
       Serial.println(res);

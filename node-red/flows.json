@@ -1,0 +1,117 @@
+[
+    {
+        "id": "1b59dfe1b0289de3",
+        "type": "tab",
+        "label": "https化プロキシ",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "2f8f976b9061bf36",
+        "type": "http in",
+        "z": "1b59dfe1b0289de3",
+        "name": "",
+        "url": "/proxy/*",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 250,
+        "y": 740,
+        "wires": [
+            [
+                "e68a161562fa37a2"
+            ]
+        ]
+    },
+    {
+        "id": "e68a161562fa37a2",
+        "type": "function",
+        "z": "1b59dfe1b0289de3",
+        "name": "function 3",
+        "func": "// \"/proxy/xxx\"を\"xxx\"に\nmsg.path = msg.req.path.replace(\"/proxy/\", \"\");\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 740,
+        "wires": [
+            [
+                "fbe52b4a12422fe5",
+                "350a6bc33445a4f8"
+            ]
+        ]
+    },
+    {
+        "id": "c46d300a8c213721",
+        "type": "http response",
+        "z": "1b59dfe1b0289de3",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 830,
+        "y": 840,
+        "wires": []
+    },
+    {
+        "id": "350a6bc33445a4f8",
+        "type": "http request",
+        "z": "1b59dfe1b0289de3",
+        "name": "",
+        "method": "GET",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://{{{path}}}",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 650,
+        "y": 740,
+        "wires": [
+            [
+                "96c53fe8cc94f198",
+                "c46d300a8c213721"
+            ]
+        ]
+    },
+    {
+        "id": "fbe52b4a12422fe5",
+        "type": "debug",
+        "z": "1b59dfe1b0289de3",
+        "name": "debug 6",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 460,
+        "y": 840,
+        "wires": []
+    },
+    {
+        "id": "96c53fe8cc94f198",
+        "type": "debug",
+        "z": "1b59dfe1b0289de3",
+        "name": "debug 8",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 840,
+        "y": 700,
+        "wires": []
+    }
+]

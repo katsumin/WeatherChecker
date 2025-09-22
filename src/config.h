@@ -10,6 +10,11 @@
 // Ethernet
 byte mac[] = {0x02, 0x01, 0x02, 0x03, 0x04, 0x06};
 
+// proxy
+#define PROXY_HOST "192.168.1.104"
+#define PROXY_PORT 1880
+#define PROXY_PATH "proxy"
+
 // Weather code map
 const char WEATHER_CODE_MAP[] =
     "{\"100\":\"100\",\"101\":\"101\",\"102\":\"102\",\"103\":\"102\",\"104\":"
