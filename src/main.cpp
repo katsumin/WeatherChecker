@@ -10,6 +10,7 @@
 #ifdef PICO_MODE
 #include <gfx.h>
 #include <W55RP20lwIP.h>
+#include <W6300lwIP.h>
 #endif
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
@@ -32,7 +33,11 @@
 
 // Ethernet instance
 #ifndef USE_WIFI
+#ifdef W6300_EVB
+Wiznet6300lwIP eth(1 /* chip select */);
+#elifdef W55RP20
 Wiznet55rp20lwIP eth(1 /* chip select */);
+#endif
 #endif
 
 // Display instance
@@ -366,7 +371,11 @@ void loop()
     if (epoch % SECOONDS_AT_5MIN == NTP_REQUEST_TIMING) {
       IPAddress h;
       h.fromString(PROXY_HOST);
+#ifdef USE_WIFI
+      int ping_ttl = WiFi.ping(h, 10);
+#else
       int ping_ttl = eth.ping(h, 10);
+#endif
       Serial.printf("ping(ttl): %d\n", ping_ttl);
     }
     if (epoch % SECOONDS_AT_DAY == NTP_REQUEST_TIMING) // 00:00
